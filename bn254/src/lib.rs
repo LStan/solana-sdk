@@ -317,13 +317,33 @@ mod target_arch {
         ))
     }
 
+    #[inline(always)]
+    pub fn alt_bn128_pairing_checked(input: &[u8]) -> Result<Vec<u8>, AltBn128Error> {
+        alt_bn128_apply_pairing(input, true)
+    }
+
+    #[inline(always)]
     pub fn alt_bn128_pairing(input: &[u8]) -> Result<Vec<u8>, AltBn128Error> {
-        if input
-            .len()
-            .checked_rem(consts::ALT_BN128_PAIRING_ELEMENT_LEN)
-            .is_none()
-        {
-            return Err(AltBn128Error::InvalidInputData);
+        alt_bn128_apply_pairing(input, false)
+    }
+
+    fn alt_bn128_apply_pairing(
+        input: &[u8],
+        correct_check: bool,
+    ) -> Result<Vec<u8>, AltBn128Error> {
+        if correct_check {
+            if input.len() % ALT_BN128_PAIRING_ELEMENT_LEN != 0 {
+                return Err(AltBn128Error::InvalidInputData);
+            }
+        } else {
+            // this check doesn't do anything, but it was here before
+            if input
+                .len()
+                .checked_rem(consts::ALT_BN128_PAIRING_ELEMENT_LEN)
+                .is_none()
+            {
+                return Err(AltBn128Error::InvalidInputData);
+            }
         }
 
         let ele_len = input.len().saturating_div(ALT_BN128_PAIRING_ELEMENT_LEN);
@@ -416,11 +436,7 @@ mod target_arch {
     }
 
     pub fn alt_bn128_pairing(input: &[u8]) -> Result<Vec<u8>, AltBn128Error> {
-        if input
-            .len()
-            .checked_rem(consts::ALT_BN128_PAIRING_ELEMENT_LEN)
-            .is_none()
-        {
+        if input.len() % ALT_BN128_PAIRING_ELEMENT_LEN != 0 {
             return Err(AltBn128Error::InvalidInputData);
         }
         let mut result_buffer = [0u8; 32];
@@ -478,5 +494,8 @@ mod tests {
         assert!(result.is_ok());
         let expected = BigInteger256::from(1u64).to_bytes_be();
         assert_eq!(result.unwrap(), expected);
+
+        let result = alt_bn128_pairing_checked(&input);
+        assert!(result.is_err());
     }
 }
